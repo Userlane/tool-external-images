@@ -9,24 +9,24 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-24.04
     outputs:
-      images: ${{ steps.images.outputs.matrix }}
+      images: ${{ steps.images.outputs.images }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Prepare the Matrix
         id: images
         run: |
-          OUTPUT=""
+          IMAGES=""
           for i in *; do
             if [ -d "$i" ] && [ -e "$i/Dockerfile" ]; then
-              if [ -z "$OUTPUT" ]; then
-                OUTPUT="$i"
+              if [ -z "$IMAGES" ]; then
+                IMAGES="$i"
               else
-                OUTPUT="$OUTPUT,$i"
+                IMAGES="$IMAGES,$i"
               fi
             fi
           done
-          echo "matrix=$(echo -n $OUTPUT | jq -R -c 'split(",")')" >> $GITHUB_OUTPUT
+          echo "images=$(echo -n $IMAGES | jq -R -c 'split(",")')" >> $GITHUB_OUTPUT
 
   Build:
     needs: Prepare
