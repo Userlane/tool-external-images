@@ -1,0 +1,43 @@
+name: Default Workflow
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  Prepare:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    outputs:
+      images: ${{ steps.images.outputs.matrix }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Prepare the Matrix
+        id: images
+        run: |
+          OUTPUT=""
+          for i in *; do
+            if [ -d "$i" ] && [ -e "$i/Dockerfile" ]; then
+              if [ -z "$OUTPUT" ]; then
+                OUTPUT="$i"
+              else
+                OUTPUT="$OUTPUT,$i"
+              fi
+            fi
+          done
+          echo "matrix=$(echo -n $OUTPUT | jq -R -c 'split(",")')" >> $GITHUB_OUTPUT
+
+  Build:
+    needs: Prepare
+    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.Prepare.outputs.images) }}
+    name: Build ${{ matrix.image }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
