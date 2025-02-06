@@ -40,11 +40,11 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      # - name: Extract Image Tag from Dockerfile
-      #   id: extract_tag
-      #   run: |
-      #     TAG=$(awk '/^FROM / {print $2; exit}' "${{ matrix.image }}/Dockerfile" | cut -d':' -f2)
-      #     echo "tag=$TAG" >> $GITHUB_ENV
+      - name: Extract Image Tag from Dockerfile
+        id: extract_tag
+        run: |
+          TAG=$(awk '/^FROM / {print $2; exit}' "${{ matrix.image }}/Dockerfile" | cut -d':' -f2)
+          echo "tag=$TAG" #>> $GITHUB_ENV
       # - name: Build container
       #   uses: docker/build-push-action@v6
       #   with:
