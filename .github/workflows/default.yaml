@@ -4,6 +4,9 @@ on:
     branches:
       - '**'
 
+env:
+  repository: ghcr.io/userlane/tool-external-images
+
 jobs:
   Prepare:
     timeout-minutes: 5
@@ -46,7 +49,7 @@ jobs:
       - name: Login to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io/${{ github.repository }}
+          registry: ${{ env.repository }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Extract Image Tag from Dockerfile
@@ -59,12 +62,12 @@ jobs:
       - name: Check if tag exists
         run: |
           echo -e "\e[32m*****\n\e[32mChecking if Image already exists\n\e[32m*****\e[0m"
-          if docker manifest inspect ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ env.tag }} >/dev/null; then
+          if docker manifest inspect ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }} >/dev/null; then
             echo "Image already exists."
             exit 0
           fi
       - name: Push container
         run: |
           docker pull ${{ env.image }}:${{ env.tag }}
-          docker tag ${{ env.image }}:${{ env.tag }} ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ env.tag }}
-          docker push ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ env.tag }}
+          docker tag ${{ env.image }}:${{ env.tag }} ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}
+          docker push ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}
