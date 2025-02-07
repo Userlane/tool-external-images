@@ -63,4 +63,5 @@ jobs:
       - name: Push container
         run: |
           docker pull ${{ env.image }}:${{ env.tag }}
-
+          docker tag ${{ env.image }}:${{ env.tag }} ghcr.io/userlane/tool-external-images/${{ matrix.image }}:${{ env.tag }}
+          docker push ghcr.io/userlane/tool-external-images/${{ matrix.image }}:${{ env.tag }}
