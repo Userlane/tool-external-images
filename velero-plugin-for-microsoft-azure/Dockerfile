@@ -1,0 +1,1 @@
+FROM velero/velero-plugin-for-microsoft-azure:v1.6.1
