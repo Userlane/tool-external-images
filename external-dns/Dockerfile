@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/external-dns:0.13.1-debian-11-r9
