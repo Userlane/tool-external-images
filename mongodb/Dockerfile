@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/mongodb:8.0.4-debian-12-r2
