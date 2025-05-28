@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/postgres-exporter:0.10.1-debian-11-r20

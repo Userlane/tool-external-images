@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/postgresql:14.4.0-debian-11-r19
