@@ -1,0 +1,1 @@
+FROM flant/clickhouse-exporter:latest

@@ -1,0 +1,1 @@
+FROM altinity/clickhouse-backup:master

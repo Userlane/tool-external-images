@@ -1,0 +1,1 @@
+FROM clickhouse/clickhouse-server:24.8.11.5
