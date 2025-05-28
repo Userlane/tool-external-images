@@ -1,0 +1,1 @@
+FROM docker.io/nginxinc/nginx-unprivileged:1.23-alpine
