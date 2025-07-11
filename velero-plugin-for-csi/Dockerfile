@@ -1,1 +1,1 @@
-FROM velero/velero-plugin-for-csi:v0.4.1
+FROM velero/velero-plugin-for-csi:v0.7.1
