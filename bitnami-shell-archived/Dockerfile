@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r136

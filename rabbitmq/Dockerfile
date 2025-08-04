@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/rabbitmq:3.11.13-debian-11-r0
