@@ -1,2 +1,5 @@
+#redis
+FROM docker.io/bitnami/redis-exporter:1.45.0-debian-11-r1
+
 #superset
-FROM docker.io/bitnami/redis-exporter:1.50.0-debian-11-r1
+#FROM docker.io/bitnami/redis-exporter:1.50.0-debian-11-r1
