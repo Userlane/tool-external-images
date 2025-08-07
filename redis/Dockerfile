@@ -1,5 +1,8 @@
+#infra-k8s-userlane-deployer, service-tutorial-step-screenshots, sre-test-repository, service-subresource-integrity
+FROM docker.io/bitnami/redis:7.0.12-debian-11-r34
+
 #lrps, subresource-integrity, step-screenshots
-FROM docker.io/bitnami/redis:7.0.5-debian-11-r15
+#FROM docker.io/bitnami/redis:7.0.5-debian-11-r15
 
 #superset
 #FROM docker.io/bitnami/redis:7.0.10-debian-11-r4
