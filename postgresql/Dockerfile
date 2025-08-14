@@ -1,5 +1,8 @@
+#infra-analytics-core
+FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r17
+
 # service-analhytics-airflow
-FROM docker.io/bitnami/postgresql:11
+#FROM docker.io/bitnami/postgresql:11
 
 # actions-tetsting, service-application-discovery, service-authentication, service-background-tasks
 # service-keycloak, service-mediator, service-metabase, service-mothership
