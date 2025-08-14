@@ -1,5 +1,8 @@
+#infra-analytics-core
+FROM docker.io/bitnami/redis:6.2.6-debian-10-r53
+
 #infra-k8s-userlane-deployer, service-tutorial-step-screenshots, sre-test-repository, service-subresource-integrity
-FROM docker.io/bitnami/redis:7.0.12-debian-11-r34
+#FROM docker.io/bitnami/redis:7.0.12-debian-11-r34
 
 #lrps, subresource-integrity, step-screenshots
 #FROM docker.io/bitnami/redis:7.0.5-debian-11-r15
