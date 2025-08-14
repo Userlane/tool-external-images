@@ -1,5 +1,8 @@
+#infra-analytics-core
+FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r265
+
 # service-analytics-airflow
-FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r305
+#FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r305
 
 # actions-tetsting, infra-k8s-userlane-deployer, service-analytics-data-api, service-application-discovery, service-authentication
 # service-background-tasks, service-keycloak, service-lrps, service-mediator, service-metabase
