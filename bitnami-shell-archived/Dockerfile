@@ -1,7 +1,7 @@
 #infra-k8s-userlane-deployer
-# FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r98
-FROM docker.io/bitnami/bitnami-shell-archived:10
-
+#FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r98
+#FROM docker.io/bitnami/bitnami-shell-archived:10
+FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r232
 
 #infra-analytics-core
 #FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r265
