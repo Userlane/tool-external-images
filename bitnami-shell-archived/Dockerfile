@@ -1,5 +1,6 @@
 #infra-analytics-core
-FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r265
+#FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r265
+FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r102
 
 # service-analytics-airflow
 #FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r305
