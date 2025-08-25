@@ -1,5 +1,7 @@
+FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r28
+
 #infra-analytics-core
-FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r17
+#FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r17
 
 # service-analhytics-airflow
 #FROM docker.io/bitnami/postgresql:11
