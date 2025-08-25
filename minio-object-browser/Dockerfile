@@ -1,0 +1,1 @@
+FROM docker.io/bitnami/minio-object-browser:2.0.2-debian-12-r1
