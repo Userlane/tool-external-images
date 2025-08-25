@@ -1,4 +1,6 @@
-FROM docker.io/bitnami/postgres-exporter:0.11.1-debian-11-r22
+FROM docker.io/bitnami/postgres-exporter:0.10.0-debian-10-r172
+
+#FROM docker.io/bitnami/postgres-exporter:0.11.1-debian-11-r22
 
 #infra-analytics-core
 #FROM docker.io/bitnami/postgres-exporter:0.10.0-debian-10-r133
