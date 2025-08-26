@@ -1,4 +1,5 @@
-FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r48
+FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r20
+#FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r48
 
 #infra-k8s-userlane-deployer
 #FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r98
