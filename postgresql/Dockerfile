@@ -1,4 +1,5 @@
-FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r28
+FROM docker.io/bitnami/postgresql:14.6.0-debian-11-r13
+#FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r28
 
 #infra-analytics-core
 #FROM docker.io/bitnami/postgresql:11.14.0-debian-10-r17
