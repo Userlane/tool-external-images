@@ -1,4 +1,5 @@
-FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r259
+FROM docker.io/bitnami/bitnami-shell-archived:10
+#FROM docker.io/bitnami/bitnami-shell-archived:10-debian-10-r259
 
 #FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r20
 #FROM docker.io/bitnami/bitnami-shell-archived:11-debian-11-r48
