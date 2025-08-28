@@ -1,2 +1,3 @@
+FROM bitnami/kubectl:latest
 # service-analytics-airflow
-FROM bitnami/kubectl:1.30.6
+#FROM bitnami/kubectl:1.30.6
