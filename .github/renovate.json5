@@ -1,0 +1,3 @@
+{
+  extends: ["github>Userlane/tool-github-actions//.github/renovate.json5#master"],
+}
