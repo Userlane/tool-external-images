@@ -1,0 +1,39 @@
+name: Weekly Build
+
+# Builds and pushes selected Dockerfiles weekly to GHCR.
+# Use workflow_dispatch to run it manually.
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Weekly on Monday at 03:00 UTC
+  workflow_dispatch:
+
+env:
+  repository: ghcr.io/userlane/tool-external-images
+
+jobs:
+  build-weekly:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add image folder names here to have them built weekly.
+        image:
+          - php
+    name: Build ${{ matrix.image }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #6
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.repository }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push image
+        run: |
+          TAG=$(awk '/^FROM / {print $2; exit}' "${{ matrix.image }}/Dockerfile" | cut -d':' -f2)
+          docker build -t ${{ env.repository }}/${{ matrix.image }}:${TAG} "${{ matrix.image }}"
+          docker push ${{ env.repository }}/${{ matrix.image }}:${TAG}
