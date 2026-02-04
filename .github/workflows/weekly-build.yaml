@@ -21,7 +21,14 @@ jobs:
       matrix:
         # Add image folder names here to have them built weekly.
         image:
-          - php
+          - mothership/nginx
+          - mothership/nginx-exporter
+          - mothership/pgbouncer
+          - mothership/pgbouncer-exporter
+          - mothership/php
+          - mothership/php-fpm-exporter
+          - mothership/postgres
+          - mothership/schema-publisher
     name: Build ${{ matrix.image }}
     steps:
       - name: Check out repository code

@@ -19,17 +19,11 @@ jobs:
       - name: Prepare the Matrix
         id: images
         run: |
-          IMAGES=""
-          for i in *; do
-            if [ -d "$i" ] && [ -e "$i/Dockerfile" ]; then
-              if [ -z "$IMAGES" ]; then
-                IMAGES="$i"
-              else
-                IMAGES="$IMAGES,$i"
-              fi
-            fi
-          done
-          echo "images=$(echo -n $IMAGES | jq -R -c 'split(",")')" >> $GITHUB_OUTPUT
+          IMAGE_DIRS=$(find . -type f -name Dockerfile -not -path "./.git/*" -print0 | \
+            xargs -0 -n1 dirname | \
+            sed 's|^\./||' | \
+            sort -u)
+          echo "images=$(printf "%s\n" "$IMAGE_DIRS" | jq -R -s -c 'split("\n") | map(select(length>0))')" >> $GITHUB_OUTPUT
 
   Build:
     needs: Prepare
