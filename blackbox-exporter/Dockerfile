@@ -1,1 +1,1 @@
-FROM prom/blackbox-exporter:v0.23.0
+FROM prom/blackbox-exporter:v0.28.0

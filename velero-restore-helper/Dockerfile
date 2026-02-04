@@ -1,1 +1,1 @@
-FROM velero/velero-restore-helper:v1.10.2
+FROM velero/velero-restore-helper:v1.15.2
