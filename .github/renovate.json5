@@ -1,3 +1,48 @@
 {
-  extends: ["github>Userlane/tool-github-actions//.github/renovate.json5#master"],
+    extends: [
+        'config:recommended',
+    ],
+    prConcurrentLimit: 1,
+    helmfile: {
+        managerFilePatterns: [
+            '/^helmfile.d/.[^/]*.ya?ml$/',
+        ],
+    },
+    'helm-values': {
+        managerFilePatterns: [
+            '/^helmfile.d/config/.*.ya?ml$/',
+            '/^helm/values.ya?ml$/',
+            '/environments.ya?ml$/',
+        ],
+    },
+    kubernetes: {
+        managerFilePatterns: [
+            '/.*templates.*.yaml$/',
+        ],
+    },
+    packageRules: [
+        {
+            groupName: 'all non-major dependencies',
+            groupSlug: 'all-minor-patch',
+            matchPackageNames: [
+                '*',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+        },
+    ],
+    hostRules: [
+        {
+            matchHost: 'uslnmaincr.azurecr.io',
+            username: 'UslnMainCR',
+            password: '{{ secrets.AZURE_ACR_MAIN_TOKEN }}',
+        },
+        {
+            matchHost: 'raw.githubusercontent.com',
+            username: 'userlane-bot',
+            password: '{{ secrets.GITHUB_CHARTS_TOKEN }}',
+        },
+    ],
 }
