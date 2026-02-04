@@ -39,6 +39,12 @@ jobs:
           registry: ${{ env.repository }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Login to ACR (uslnmaincr)
+        uses: docker/login-action@v3
+        with:
+          registry: uslnmaincr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
       - name: Build and push image
         run: |
           TAG=$(awk '/^FROM / {print $2; exit}' "${{ matrix.image }}/Dockerfile" | cut -d':' -f2)

@@ -46,6 +46,12 @@ jobs:
           registry: ${{ env.repository }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Login to ACR (uslnmaincr)
+        uses: docker/login-action@v3
+        with:
+          registry: uslnmaincr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
       - name: Extract Image Tag from Dockerfile
         id: extract_tag
         run: |
