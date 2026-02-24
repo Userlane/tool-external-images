@@ -1,39 +1,42 @@
-name: Weekly Build
+name: Build On Demand
 
-# Builds and pushes selected Dockerfiles weekly to GHCR.
-# Use workflow_dispatch to run it manually.
+# Builds and pushes a selected Dockerfile to GHCR on demand.
 on:
-  schedule:
-    - cron: "0 3 * * 1" # Weekly on Monday at 03:00 UTC
   workflow_dispatch:
+    inputs:
+      image:
+        description: "Image folder name to build (for example: php)"
+        required: true
+        type: string
 
 env:
   repository: ghcr.io/userlane/tool-external-images
 
 jobs:
-  build-weekly:
+  build-on-demand:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # Add image folder names here to have them built weekly.
-        image:
-          - php
-    name: Build ${{ matrix.image }}
+    name: Build ${{ inputs.image }}
     steps:
       - name: Check out repository code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Login to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.repository }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Build and push image
         run: |
-          TAG=$(awk '/^FROM / {print $2; exit}' "${{ matrix.image }}/Dockerfile" | cut -d':' -f2)
-          docker build -t ${{ env.repository }}/${{ matrix.image }}:${TAG} "${{ matrix.image }}"
-          docker push ${{ env.repository }}/${{ matrix.image }}:${TAG}
+          IMAGE="${{ inputs.image }}"
+
+          if [ ! -f "$IMAGE/Dockerfile" ]; then
+            echo "Dockerfile not found for image folder: $IMAGE"
+            exit 1
+          fi
+
+          TAG=$(awk '/^FROM / {print $2; exit}' "$IMAGE/Dockerfile" | cut -d':' -f2)
+          docker build -t ${{ env.repository }}/$IMAGE:${TAG} "$IMAGE"
+          docker push ${{ env.repository }}/$IMAGE:${TAG}
