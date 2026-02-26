@@ -69,11 +69,11 @@ jobs:
       - name: Push container
         run: |
           echo -e "\e[32m*****\n\e[32mChecking if Image already exists\n\e[32m*****\e[0m"
-          if docker manifest inspect ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }} >/dev/null; then
+          if curl -s -f -H "Authorization: Bearer ${{ github.token }}" "https://ghcr.io/v2/${{ github.repository_owner }}/tool-external-images/${{ matrix.image }}/manifests/${{ env.tag }}" >/dev/null 2>&1; then
             echo "Image already exists."
             exit 0
           else
-            echo "Image doesn't exists."
+            echo "Image doesn't exist."
             docker pull ${{ env.image }}:${{ env.tag }}
             docker tag ${{ env.image }}:${{ env.tag }} ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}
             docker push ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}          
