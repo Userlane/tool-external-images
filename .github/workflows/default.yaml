@@ -66,7 +66,8 @@ jobs:
             echo "Image already exists."
             exit 0
           else
-            docker pull ${{ env.image }}:${{ env.tag }}
-            docker tag ${{ env.image }}:${{ env.tag }} ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}
-            docker push ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}          
+            echo "Image doesn't exist."
+            # docker pull ${{ env.image }}:${{ env.tag }}
+            # docker tag ${{ env.image }}:${{ env.tag }} ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}
+            # docker push ${{ env.repository }}/${{ matrix.image }}:${{ env.tag }}          
           fi
