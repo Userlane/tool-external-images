@@ -2,22 +2,25 @@
     extends: [
         'config:recommended',
     ],
+    labels: [
+        'Renovate',
+    ],
     prConcurrentLimit: 1,
     helmfile: {
         managerFilePatterns: [
-            '/^helmfile.d/.[^/]*.ya?ml$/',
+            '//^helmfile.d/.[^/]*.ya?ml$//',
         ],
     },
     'helm-values': {
         managerFilePatterns: [
-            '/^helmfile.d/config/.*.ya?ml$/',
-            '/^helm/values.ya?ml$/',
-            '/environments.ya?ml$/',
+            '//^helmfile.d/config/.*.ya?ml$//',
+            '//^helm/values.ya?ml$//',
+            '//environments.ya?ml$//',
         ],
     },
     kubernetes: {
         managerFilePatterns: [
-            '/.*templates.*.yaml$/',
+            '//.*templates.*.yaml$//',
         ],
     },
     packageRules: [
@@ -30,6 +33,15 @@
             matchUpdateTypes: [
                 'minor',
                 'patch',
+            ],
+            automerge: true,
+            commitMessagePrefix: 'chore(deps):',
+        },
+        {
+            groupName: 'github actions',
+            groupSlug: 'github-actions',
+            matchManagers: [
+                'github-actions',
             ],
         },
     ],

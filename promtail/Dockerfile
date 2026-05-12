@@ -1,3 +1,3 @@
-FROM docker.io/grafana/promtail:3.5.1
+FROM docker.io/grafana/promtail:3.6.8
 # FROM docker.io/grafana/promtail:3.6.4
 # FROM docker.io/grafana/promtail:2.7.4
