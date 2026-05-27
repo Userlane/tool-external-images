@@ -1,2 +1,2 @@
 # loki
-FROM docker.io/prom/memcached-exporter:v0.15.5
+FROM docker.io/prom/memcached-exporter:v0.16.0
