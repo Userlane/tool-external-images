@@ -1,1 +1,1 @@
-FROM altinity/clickhouse-operator:0.27.0
+FROM altinity/clickhouse-operator:0.27.1
