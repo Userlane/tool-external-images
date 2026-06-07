@@ -1,1 +1,1 @@
-FROM altinity/metrics-exporter:0.27.1
+FROM altinity/metrics-exporter:0.27.2
