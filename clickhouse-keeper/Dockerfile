@@ -1,2 +1,2 @@
-FROM clickhouse/clickhouse-keeper:26.5.1.882-alpine
+FROM clickhouse/clickhouse-keeper:26.6.1.1193-alpine
 
