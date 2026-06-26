@@ -1,4 +1,4 @@
-FROM quay.io/prometheus/busybox-linux-amd64@sha256:22334508ab30428b42b6ac8c8fae1e12fda864f84fa6fb5b62fb86d9b9b08887
+FROM quay.io/prometheus/busybox-linux-amd64@sha256:13eb15a618391988fc593ebd95b854f3afd9753f604ade4933d94fb2418fdfe4
 
 # FROM quay.io/prometheus/busybox-linux-amd64@sha256:86d2c6d3d8550a58ab6b61eda6343e523785bf9e7a99fd5efd3d3159e4a2cfb9
 
