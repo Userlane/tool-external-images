@@ -1,2 +1,2 @@
 # loki
-FROM docker.io/library/memcached:1.6.44-alpine
+FROM docker.io/library/memcached:1.6.45-alpine
