@@ -1,2 +1,2 @@
 # infra-analytics-core
-FROM quay.io/strimzi/maven-builder:1.1.0
+FROM quay.io/strimzi/maven-builder:1.2.0
