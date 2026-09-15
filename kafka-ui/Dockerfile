@@ -1,1 +1,1 @@
-FROM docker.io/provectuslabs/kafka-ui:v0.7.2
+FROM ghcr.io/kafbat/kafka-ui:v1.5.0
