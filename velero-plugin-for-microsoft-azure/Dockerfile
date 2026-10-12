@@ -1,1 +1,1 @@
-FROM velero/velero-plugin-for-microsoft-azure:v1.14.2
+FROM velero/velero-plugin-for-microsoft-azure:v1.12.2
