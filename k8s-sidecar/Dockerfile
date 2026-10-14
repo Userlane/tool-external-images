@@ -1,2 +1,2 @@
 # loki
-FROM docker.io/kiwigrid/k8s-sidecar:2.11.2
+FROM docker.io/kiwigrid/k8s-sidecar:2.14.1
