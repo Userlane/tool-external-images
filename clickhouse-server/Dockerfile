@@ -1,4 +1,4 @@
-FROM clickhouse/clickhouse-server:25.8.33.6
+FROM clickhouse/clickhouse-server:25.12.11.4
 
 #FROM clickhouse/clickhouse-server:26.8.2.7-alpine
 
