@@ -1,4 +1,4 @@
-FROM php:8.5.12-fpm-alpine3.24@sha256:c15690bd932bd6d33f43ccae6ddd8d60acb93cee50c16afc6e699265d5d86583
+FROM php:8.5.12-fpm-alpine3.24
 
 RUN set -ex && \
     apk upgrade --no-cache && \
