@@ -1,22 +1,361 @@
 {
+    // Verbatim copy of tool-github-actions/.github/renovate.json5, which this
+    // repo cannot extend: it is public and the preset repo is private, so
+    // Renovate fails to resolve the preset. Keep the copy in sync by diffing
+    // against that file; the only intended deltas are the auto-merge rules at
+    // the end of packageRules, since the verdict flow in the shared ci.yaml
+    // that enables auto-merge elsewhere never runs here.
     extends: [
-        'github>Userlane/tool-github-actions//.github/renovate.json5#master',
+        'config:recommended',
     ],
-    // This repo mirrors upstream images and does not use the shared ci.yaml, so
-    // the verdict flow that enables auto-merge elsewhere never runs here.
-    packageRules: [
+    labels: [
+        'Renovate',
+    ],
+    prConcurrentLimit: 2,
+
+    // Closed PRs are treated as a rejection; Renovate only re-opens on a newer version.
+    recreateWhen: 'never',
+
+    helmfile: {
+        managerFilePatterns: [
+            '//^helmfile\\.d/[^/]+\\.ya?ml$//', // top-level YAML files in helmfile.d/
+        ],
+    },
+    'helm-values': {
+        managerFilePatterns: [
+            '//^helmfile.d/config/.*.ya?ml$//', // value overrides under helmfile.d/config/
+            '//^helm/values.ya?ml$//',          // standard Helm values
+            '//environments.ya?ml$//',          // environment-specific values (any depth)
+        ],
+    },
+    kubernetes: {
+        managerFilePatterns: [
+            '//.*templates.*.yaml$//', // K8s manifests inside templates directories
+        ],
+    },
+
+    // The dockerfile manager only tracks the `FROM` line. Some repos pin npm in
+    // the runtime stage (`npm install -g npm@x.y.z`) to clear a security finding
+    // in npm's bundled `tar` (CORE-3558); without this the pin goes stale
+    // silently once npm ships a fix. Matches Dockerfiles at any depth and with
+    // any suffix so a subdir or `Dockerfile.prod` pin is not missed.
+    customManagers: [
         {
-            matchManagers: ['dockerfile'],
-            matchUpdateTypes: ['minor', 'patch', 'digest', 'pinDigest'],
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)Dockerfile[^/]*$/',
+            ],
+            matchStrings: [
+                'npm install -g npm@(?<currentValue>\\d+\\.\\d+\\.\\d+)',
+            ],
+            depNameTemplate: 'npm',
+            datasourceTemplate: 'npm',
+        },
+    ],
+
+    packageRules: [
+        // Baseline prefix for anything not matched below. Later rules override.
+        {
+            matchPackageNames: [
+                '*',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // All non-major deps (except runtimes and Helm) grouped. Auto-merge
+        // is verdict-flow-driven (not Renovate's, see CLAUDE.md).
+        {
+            groupName: 'all non-major dependencies',
+            groupSlug: 'all-minor-patch',
+            matchDepNames: [
+                '!python',
+                '!golang',
+                '!nodejs',
+                '!node',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Runtime non-major bumps: grouped. Slug → branch prefix so the
+        // verdict-flow regex distinguishes these from runtime majors.
+        {
+            groupName: 'runtimes minor and patch',
+            groupSlug: 'runtimes-minor-patch',
+            matchDepNames: [
+                'python',
+                'golang',
+                'nodejs',
+                'node',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Runtime major bumps: individual PRs, human-merged. A toolchain
+        // version change deserves explicit human review.
+        {
+            groupName: null,
+            matchDepNames: [
+                'python',
+                'golang',
+                'nodejs',
+                'node',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Sentry ships coordinated breaking changes across packages.
+        {
+            groupName: 'sentry major',
+            groupSlug: 'sentry-major',
+            matchPackageNames: [
+                '@sentry/*',
+                'sentry*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Linting & formatting major bumps. Pure dev-only tooling (pre-commit,
+        // not runtime or CI), grouped into one PR. Deliberately NOT `automerge`:
+        // the verdict-flow regex in ci.yaml's `renovate_apply_verdict` matches this
+        // slug, so Claude's `safe` verdict is what enables auto-merge.
+        {
+            groupName: 'linting and formatting major',
+            groupSlug: 'linting-formatting-major',
+            matchPackageNames: [
+                'eslint*',
+                '@eslint/*',
+                '@typescript-eslint/*',
+                // v8+ flat-config meta-package; bare name the scoped glob misses.
+                'typescript-eslint',
+                'prettier*',
+                'stylelint*',
+                '@stylistic/*',
+                'black*',
+                'isort*',
+                'ruff*',
+                'autopep8*',
+                'lint-staged*',
+                'husky*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Test framework + library major bumps. Dev-only, but framework changes
+        // can ship behavior shifts that pass CI yet mask regressions, so grouped
+        // and deliberately NOT `automerge`: the verdict-flow regex in ci.yaml's
+        // `renovate_apply_verdict` matches this slug, so Claude audits before its
+        // `safe` verdict enables auto-merge.
+        {
+            groupName: 'testing major',
+            groupSlug: 'testing-major',
+            matchPackageNames: [
+                'jest*',
+                '@jest/*',
+                'ts-jest*',
+                '@golevelup/ts-jest',
+                '@testing-library/*',
+                'vitest*',
+                '@vitest/*',
+                'mocha*',
+                'chai*',
+                'sinon*',
+                'nock*',
+                'supertest*',
+                'pytest',
+                'pytest-*',
+                'freezegun*',
+                'responses*',
+                'mock',
+                'phpunit/phpunit*',
+                'phpspec/*',
+                'pestphp/*',
+                'mockery/mockery*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Dev/build tooling majors. See CLAUDE.md for the auto-merge rationale.
+        {
+            groupName: 'dev tooling major',
+            groupSlug: 'dev-tooling-major',
+            matchPackageNames: [
+                'npm-check-updates',
+                'npm-run-all2',
+                'npm-run-all',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Narrow production opt-in; canary for wider expansion. See CLAUDE.md.
+        {
+            groupName: 'structlog major',
+            groupSlug: 'structlog-major',
+            matchPackageNames: [
+                'structlog',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Docker image digest re-pins only (no tag/version bumps). See CLAUDE.md.
+        {
+            groupName: 'docker digest',
+            groupSlug: 'docker-digest',
+            matchDatasources: [
+                'docker',
+            ],
+            matchUpdateTypes: [
+                'digest',
+                'pinDigest',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // TypeScript compiler + type definitions.
+        {
+            groupName: 'typescript and types major',
+            groupSlug: 'typescript-types-major',
+            matchPackageNames: [
+                'typescript',
+                '@types/*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // GitHub Actions action refs: all update types. Runner image
+        // bumps are split off in the next rule.
+        {
+            groupName: 'github actions',
+            groupSlug: 'github-actions',
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'action',
+            ],
+            matchUpdateTypes: [
+                'major',
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Runner image bumps (`runs-on: ubuntu-XX.XX`): individual PR, human review.
+        {
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'github-runner',
+            ],
+            groupName: null,
+            groupSlug: null,
+            commitMessagePrefix: 'chore(deps):',
+            automerge: false,
+        },
+
+        // Helm: no auto-created PRs. Updates wait on the Dependency Dashboard
+        // for a human to trigger from Renovate's interface.
+        {
+            matchManagers: [
+                'helmv3',
+                'helm-values',
+                'helmfile',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // Terraform: no auto-created PRs. Updates wait on the Dependency
+        // Dashboard for a human to trigger (IaC changes live state, no plan-gate).
+        {
+            matchManagers: [
+                'terraform',
+                'terragrunt',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // Local deltas: no verdict flow here, so Renovate auto-merges directly.
+        {
+            matchManagers: [
+                'dockerfile',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
             automerge: true,
         },
-        // Scoped to `action` so the preset's human-review rule for runner image
-        // bumps (`runs-on: ubuntu-24.04`) still stands.
+
+        // Scoped to `action` so the runner-image rule above still gets human review.
         {
-            matchManagers: ['github-actions'],
-            matchDepTypes: ['action'],
-            matchUpdateTypes: ['minor', 'patch', 'digest', 'pinDigest'],
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'action',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
             automerge: true,
+        },
+    ],
+
+    hostRules: [
+        // Azure Container Registry
+        {
+            matchHost: 'uslnmaincr.azurecr.io',
+            username: 'UslnMainCR',
+            password: '{{ secrets.AZURE_ACR_MAIN_TOKEN }}',
+        },
+        // Private Helm charts hosted on GitHub
+        {
+            matchHost: 'raw.githubusercontent.com',
+            username: 'userlane-bot',
+            password: '{{ secrets.GITHUB_CHARTS_TOKEN }}',
         },
     ],
 }
