@@ -1,21 +1,436 @@
 {
+    // Copy of `.github/renovate.json5` from Userlane/tool-github-actions@b8bc50c,
+    // which this repo cannot extend: it is public and the preset repo is private,
+    // so Renovate cannot resolve the preset and aborts on config-validation.
+    // Re-sync by diffing against that file. The intended deltas are this comment,
+    // the auto-merge rules at the end of packageRules, and the dropped hostRules
+    // (nothing here pulls from the ACR or from private charts).
     extends: [
-        'github>Userlane/tool-github-actions//.github/renovate.json5#master',
+        'config:recommended',
     ],
-    // This repo mirrors upstream images and does not use the shared ci.yaml, so
-    // the verdict flow that enables auto-merge elsewhere never runs here.
-    packageRules: [
+    labels: [
+        'Renovate',
+    ],
+    prConcurrentLimit: 2,
+
+    // Closed PRs are treated as a rejection; Renovate only re-opens on a newer version.
+    recreateWhen: 'never',
+
+    helmfile: {
+        managerFilePatterns: [
+            '//^helmfile\\.d/[^/]+\\.ya?ml$//', // top-level YAML files in helmfile.d/
+        ],
+    },
+    'helm-values': {
+        managerFilePatterns: [
+            '//^helmfile.d/config/.*.ya?ml$//', // value overrides under helmfile.d/config/
+            '//^helm/values.ya?ml$//',          // standard Helm values
+            '//environments.ya?ml$//',          // environment-specific values (any depth)
+        ],
+    },
+    kubernetes: {
+        managerFilePatterns: [
+            '//.*templates.*.yaml$//', // K8s manifests inside templates directories
+        ],
+    },
+
+    // Renovate ships the pre-commit manager disabled. Without it nothing bumps
+    // hook revs, so every `.pre-commit-config.yaml` drifts to wherever its last
+    // manual edit left it (the Go repos sat on four different golangci-lint
+    // revs, v2.5.0 through v2.13.2).
+    //
+    // These PRs carry Renovate's "not supported by the pre-commit maintainers"
+    // disclaimer and there is no way to drop it from config: `prBodyNotes` is
+    // a mergeable array, so a repo-level `[]` concatenates onto the manager
+    // default instead of clearing it. Only RENOVATE_X_SUPPRESS_PRE_COMMIT_WARNING
+    // suppresses it, and the hosted App gives us no env to set it in.
+    'pre-commit': {
+        enabled: true,
+    },
+
+    // Both regexes cover something the dockerfile manager will not rewrite. Both
+    // match Dockerfiles at any depth and with any suffix, so a subdir or
+    // `Dockerfile.prod` is not missed.
+    customManagers: [
+        // Some repos pin npm in the runtime stage (`npm install -g npm@x.y.z`)
+        // to clear a security finding in npm's bundled `tar` (CORE-3558);
+        // without this the pin goes stale silently once npm ships a fix.
         {
-            matchManagers: ['dockerfile'],
-            matchUpdateTypes: ['minor', 'patch', 'digest', 'pinDigest'],
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)Dockerfile[^/]*$/',
+            ],
+            matchStrings: [
+                'npm install -g npm@(?<currentValue>\\d+\\.\\d+\\.\\d+)',
+            ],
+            depNameTemplate: 'npm',
+            datasourceTemplate: 'npm',
+        },
+        // Go repos template the base image off `ARG GO_VERSION=x.y.z`. The dockerfile
+        // manager does resolve the ARG into the FROM image, but it cannot write the
+        // bump back: it replaces a line only when that line literally contains the
+        // resolved `currentValue`, and `1.26.3-alpine3.23` appears on neither the ARG
+        // line nor the templated FROM line, so the file is returned unchanged and the
+        // pin rots (service-analytics-ingestor sat on 1.26.3 while .tool-versions was
+        // on 1.26.6). The same holds for the Node and Python ARGs, whenever someone
+        // settles a `versioning:` for their two-component values.
+        //
+        // CI passes the arg from .tool-versions, so this only governs local and
+        // compose builds. depName `golang` groups it with the .tool-versions bump.
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)Dockerfile[^/]*$/',
+            ],
+            matchStrings: [
+                'ARG GO_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)',
+            ],
+            depNameTemplate: 'golang',
+            datasourceTemplate: 'golang-version',
+        },
+    ],
+
+    packageRules: [
+        // Baseline prefix for anything not matched below. Later rules override.
+        {
+            matchPackageNames: [
+                '*',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // All non-major deps (except runtimes and Helm) grouped. Auto-merge
+        // is verdict-flow-driven (not Renovate's, see CLAUDE.md).
+        {
+            groupName: 'all non-major dependencies',
+            groupSlug: 'all-minor-patch',
+            matchDepNames: [
+                '!python',
+                '!golang',
+                '!nodejs',
+                '!node',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Runtime non-major bumps: grouped, so they land as one PR rather than one
+        // per runtime. The slug is the branch prefix and names the group; it does
+        // not decide auto-merge, which is the file denylist (see CLAUDE.md).
+        {
+            groupName: 'runtimes minor and patch',
+            groupSlug: 'runtimes-minor-patch',
+            matchDepNames: [
+                'python',
+                'golang',
+                'nodejs',
+                'node',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Runtime major bumps: individual PRs, human-merged. A toolchain
+        // version change deserves explicit human review.
+        {
+            groupName: null,
+            matchDepNames: [
+                'python',
+                'golang',
+                'nodejs',
+                'node',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Sentry ships coordinated breaking changes across packages.
+        {
+            groupName: 'sentry major',
+            groupSlug: 'sentry-major',
+            matchPackageNames: [
+                '@sentry/*',
+                'sentry*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Linting & formatting major bumps. Pure dev-only tooling (pre-commit,
+        // not runtime or CI), grouped into one PR.
+        {
+            groupName: 'linting and formatting major',
+            groupSlug: 'linting-formatting-major',
+            matchPackageNames: [
+                'eslint*',
+                '@eslint/*',
+                '@typescript-eslint/*',
+                // v8+ flat-config meta-package; bare name the scoped glob misses.
+                'typescript-eslint',
+                'prettier*',
+                'stylelint*',
+                '@stylistic/*',
+                'black*',
+                'isort*',
+                'ruff*',
+                'autopep8*',
+                'lint-staged*',
+                'husky*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Test framework + library major bumps. Dev-only, but framework changes
+        // can ship behavior shifts that pass CI yet mask regressions, so grouped
+        // into one PR.
+        {
+            groupName: 'testing major',
+            groupSlug: 'testing-major',
+            matchPackageNames: [
+                'jest*',
+                '@jest/*',
+                'ts-jest*',
+                '@golevelup/ts-jest',
+                '@testing-library/*',
+                'vitest*',
+                '@vitest/*',
+                'mocha*',
+                'chai*',
+                'sinon*',
+                'nock*',
+                'supertest*',
+                'pytest',
+                'pytest-*',
+                'freezegun*',
+                'responses*',
+                'mock',
+                'phpunit/phpunit*',
+                'phpspec/*',
+                'pestphp/*',
+                'mockery/mockery*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Dev/build tooling majors. See CLAUDE.md for the auto-merge rationale.
+        {
+            groupName: 'dev tooling major',
+            groupSlug: 'dev-tooling-major',
+            matchPackageNames: [
+                'npm-check-updates',
+                'npm-run-all2',
+                'npm-run-all',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Narrow production opt-in; canary for wider expansion. See CLAUDE.md.
+        {
+            groupName: 'structlog major',
+            groupSlug: 'structlog-major',
+            matchPackageNames: [
+                'structlog',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // Docker image digest re-pins only (no tag/version bumps). See CLAUDE.md.
+        {
+            groupName: 'docker digest',
+            groupSlug: 'docker-digest',
+            matchDatasources: [
+                'docker',
+            ],
+            matchUpdateTypes: [
+                'digest',
+                'pinDigest',
+            ],
+            commitMessagePrefix: 'fix(deps):',
+        },
+
+        // TypeScript compiler + type definitions.
+        {
+            groupName: 'typescript and types major',
+            groupSlug: 'typescript-types-major',
+            matchPackageNames: [
+                'typescript',
+                '@types/*',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // GitHub Actions action refs: all update types. Runner image
+        // bumps are split off in the next rule.
+        {
+            groupName: 'github actions',
+            groupSlug: 'github-actions',
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'action',
+            ],
+            matchUpdateTypes: [
+                'major',
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
+            commitMessagePrefix: 'chore(deps):',
+        },
+
+        // Runner image bumps (`runs-on: ubuntu-XX.XX`): individual PR, human review.
+        {
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'github-runner',
+            ],
+            groupName: null,
+            groupSlug: null,
+            commitMessagePrefix: 'chore(deps):',
+            automerge: false,
+        },
+
+        // Helm: no auto-created PRs. Updates wait on the Dependency Dashboard
+        // for a human to trigger from Renovate's interface.
+        {
+            matchManagers: [
+                'helmv3',
+                'helm-values',
+                'helmfile',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // Terraform: no auto-created PRs. Updates wait on the Dependency
+        // Dashboard for a human to trigger (IaC changes live state, no plan-gate).
+        {
+            matchManagers: [
+                'terraform',
+                'terragrunt',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // Pre-commit hook revs are dev-only: they never ship in a runtime image.
+        // Must stay last so these override `all-minor-patch`, which would otherwise
+        // claim them for `fix(deps):` and cut a release per lint bump per repo.
+        //
+        // Weekly schedule because `renovatebot/pre-commit-hooks` is pinned in 40 of
+        // the 54 `.pre-commit-config.yaml` files across the workspace and ships ~7
+        // releases a day. Unscheduled, the group branch regenerates on nearly every
+        // run, each time burning a CI run plus a Claude verdict review in every one
+        // of those repos. Hook revs are never urgent, so batch them.
+        //
+        // All of Monday, not a 6am window: with `prConcurrentLimit: 2`, two PRs
+        // parked over the weekend would spend a narrow window on `pr-limit-reached`
+        // and push this group a full week.
+        {
+            matchManagers: [
+                'pre-commit',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            groupName: 'pre-commit hooks',
+            groupSlug: 'pre-commit-hooks',
+            commitMessagePrefix: 'chore(deps):',
+            schedule: [
+                'on monday',
+            ],
+        },
+
+        // Hook majors wait on the Dependency Dashboard, so a major of gitleaks or
+        // zizmor is taken deliberately, one repo at a time, instead of riding the
+        // group PR into every repo at once on a single `safe` verdict. In volume
+        // the common case is duller: `renovatebot/pre-commit-hooks` tracks
+        // Renovate's own major line, so most dashboard entries will be that.
+        //
+        // This is a weaker gate than Helm's, and deliberately so. Helm is double
+        // gated: dashboard approval AND the file denylist in renovate-parse-verdict,
+        // which keeps it human-merged forever. A `.pre-commit-config.yaml` hits
+        // neither denylist pattern, so once a human ticks the box the PR opens on a
+        // `renovate/*` branch and Claude's `safe` verdict still auto-merges it. The
+        // gate buys the human the choice of when, not a human merge. Adding
+        // pre-commit to that denylist would also strip auto-merge from the
+        // minor/patch group above, which is the whole point of enabling the manager.
+        {
+            matchManagers: [
+                'pre-commit',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // This repo mirrors upstream images and does not use the shared ci.yaml, so
+        // the verdict flow that enables auto-merge elsewhere never runs here.
+        {
+            matchManagers: [
+                'dockerfile',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
             automerge: true,
         },
-        // Scoped to `action` so the preset's human-review rule for runner image
-        // bumps (`runs-on: ubuntu-24.04`) still stands.
+
+        // Scoped to `action` so the runner-image rule above still gets human review.
         {
-            matchManagers: ['github-actions'],
-            matchDepTypes: ['action'],
-            matchUpdateTypes: ['minor', 'patch', 'digest', 'pinDigest'],
+            matchManagers: [
+                'github-actions',
+            ],
+            matchDepTypes: [
+                'action',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'digest',
+                'pinDigest',
+            ],
             automerge: true,
         },
     ],
