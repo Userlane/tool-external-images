@@ -1,10 +1,10 @@
 {
-    // Verbatim copy of tool-github-actions/.github/renovate.json5, which this
-    // repo cannot extend: it is public and the preset repo is private, so
-    // Renovate fails to resolve the preset. Keep the copy in sync by diffing
-    // against that file; the only intended deltas are the auto-merge rules at
-    // the end of packageRules, since the verdict flow in the shared ci.yaml
-    // that enables auto-merge elsewhere never runs here.
+    // Copy of `.github/renovate.json5` from Userlane/tool-github-actions@b8bc50c,
+    // which this repo cannot extend: it is public and the preset repo is private,
+    // so Renovate cannot resolve the preset and aborts on config-validation.
+    // Re-sync by diffing against that file. The intended deltas are this comment,
+    // the auto-merge rules at the end of packageRules, and the dropped hostRules
+    // (nothing here pulls from the ACR or from private charts).
     extends: [
         'config:recommended',
     ],
@@ -34,12 +34,27 @@
         ],
     },
 
-    // The dockerfile manager only tracks the `FROM` line. Some repos pin npm in
-    // the runtime stage (`npm install -g npm@x.y.z`) to clear a security finding
-    // in npm's bundled `tar` (CORE-3558); without this the pin goes stale
-    // silently once npm ships a fix. Matches Dockerfiles at any depth and with
-    // any suffix so a subdir or `Dockerfile.prod` pin is not missed.
+    // Renovate ships the pre-commit manager disabled. Without it nothing bumps
+    // hook revs, so every `.pre-commit-config.yaml` drifts to wherever its last
+    // manual edit left it (the Go repos sat on four different golangci-lint
+    // revs, v2.5.0 through v2.13.2).
+    //
+    // These PRs carry Renovate's "not supported by the pre-commit maintainers"
+    // disclaimer and there is no way to drop it from config: `prBodyNotes` is
+    // a mergeable array, so a repo-level `[]` concatenates onto the manager
+    // default instead of clearing it. Only RENOVATE_X_SUPPRESS_PRE_COMMIT_WARNING
+    // suppresses it, and the hosted App gives us no env to set it in.
+    'pre-commit': {
+        enabled: true,
+    },
+
+    // Both regexes cover something the dockerfile manager will not rewrite. Both
+    // match Dockerfiles at any depth and with any suffix, so a subdir or
+    // `Dockerfile.prod` is not missed.
     customManagers: [
+        // Some repos pin npm in the runtime stage (`npm install -g npm@x.y.z`)
+        // to clear a security finding in npm's bundled `tar` (CORE-3558);
+        // without this the pin goes stale silently once npm ships a fix.
         {
             customType: 'regex',
             managerFilePatterns: [
@@ -50,6 +65,28 @@
             ],
             depNameTemplate: 'npm',
             datasourceTemplate: 'npm',
+        },
+        // Go repos template the base image off `ARG GO_VERSION=x.y.z`. The dockerfile
+        // manager does resolve the ARG into the FROM image, but it cannot write the
+        // bump back: it replaces a line only when that line literally contains the
+        // resolved `currentValue`, and `1.26.3-alpine3.23` appears on neither the ARG
+        // line nor the templated FROM line, so the file is returned unchanged and the
+        // pin rots (service-analytics-ingestor sat on 1.26.3 while .tool-versions was
+        // on 1.26.6). The same holds for the Node and Python ARGs, whenever someone
+        // settles a `versioning:` for their two-component values.
+        //
+        // CI passes the arg from .tool-versions, so this only governs local and
+        // compose builds. depName `golang` groups it with the .tool-versions bump.
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)Dockerfile[^/]*$/',
+            ],
+            matchStrings: [
+                'ARG GO_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)',
+            ],
+            depNameTemplate: 'golang',
+            datasourceTemplate: 'golang-version',
         },
     ],
 
@@ -80,8 +117,9 @@
             commitMessagePrefix: 'fix(deps):',
         },
 
-        // Runtime non-major bumps: grouped. Slug → branch prefix so the
-        // verdict-flow regex distinguishes these from runtime majors.
+        // Runtime non-major bumps: grouped, so they land as one PR rather than one
+        // per runtime. The slug is the branch prefix and names the group; it does
+        // not decide auto-merge, which is the file denylist (see CLAUDE.md).
         {
             groupName: 'runtimes minor and patch',
             groupSlug: 'runtimes-minor-patch',
@@ -129,9 +167,7 @@
         },
 
         // Linting & formatting major bumps. Pure dev-only tooling (pre-commit,
-        // not runtime or CI), grouped into one PR. Deliberately NOT `automerge`:
-        // the verdict-flow regex in ci.yaml's `renovate_apply_verdict` matches this
-        // slug, so Claude's `safe` verdict is what enables auto-merge.
+        // not runtime or CI), grouped into one PR.
         {
             groupName: 'linting and formatting major',
             groupSlug: 'linting-formatting-major',
@@ -159,9 +195,7 @@
 
         // Test framework + library major bumps. Dev-only, but framework changes
         // can ship behavior shifts that pass CI yet mask regressions, so grouped
-        // and deliberately NOT `automerge`: the verdict-flow regex in ci.yaml's
-        // `renovate_apply_verdict` matches this slug, so Claude audits before its
-        // `safe` verdict enables auto-merge.
+        // into one PR.
         {
             groupName: 'testing major',
             groupSlug: 'testing-major',
@@ -312,7 +346,64 @@
             dependencyDashboardApproval: true,
         },
 
-        // Local deltas: no verdict flow here, so Renovate auto-merges directly.
+        // Pre-commit hook revs are dev-only: they never ship in a runtime image.
+        // Must stay last so these override `all-minor-patch`, which would otherwise
+        // claim them for `fix(deps):` and cut a release per lint bump per repo.
+        //
+        // Weekly schedule because `renovatebot/pre-commit-hooks` is pinned in 40 of
+        // the 54 `.pre-commit-config.yaml` files across the workspace and ships ~7
+        // releases a day. Unscheduled, the group branch regenerates on nearly every
+        // run, each time burning a CI run plus a Claude verdict review in every one
+        // of those repos. Hook revs are never urgent, so batch them.
+        //
+        // All of Monday, not a 6am window: with `prConcurrentLimit: 2`, two PRs
+        // parked over the weekend would spend a narrow window on `pr-limit-reached`
+        // and push this group a full week.
+        {
+            matchManagers: [
+                'pre-commit',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+            ],
+            groupName: 'pre-commit hooks',
+            groupSlug: 'pre-commit-hooks',
+            commitMessagePrefix: 'chore(deps):',
+            schedule: [
+                'on monday',
+            ],
+        },
+
+        // Hook majors wait on the Dependency Dashboard, so a major of gitleaks or
+        // zizmor is taken deliberately, one repo at a time, instead of riding the
+        // group PR into every repo at once on a single `safe` verdict. In volume
+        // the common case is duller: `renovatebot/pre-commit-hooks` tracks
+        // Renovate's own major line, so most dashboard entries will be that.
+        //
+        // This is a weaker gate than Helm's, and deliberately so. Helm is double
+        // gated: dashboard approval AND the file denylist in renovate-parse-verdict,
+        // which keeps it human-merged forever. A `.pre-commit-config.yaml` hits
+        // neither denylist pattern, so once a human ticks the box the PR opens on a
+        // `renovate/*` branch and Claude's `safe` verdict still auto-merges it. The
+        // gate buys the human the choice of when, not a human merge. Adding
+        // pre-commit to that denylist would also strip auto-merge from the
+        // minor/patch group above, which is the whole point of enabling the manager.
+        {
+            matchManagers: [
+                'pre-commit',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // This repo mirrors upstream images and does not use the shared ci.yaml, so
+        // the verdict flow that enables auto-merge elsewhere never runs here.
         {
             matchManagers: [
                 'dockerfile',
@@ -341,21 +432,6 @@
                 'pinDigest',
             ],
             automerge: true,
-        },
-    ],
-
-    hostRules: [
-        // Azure Container Registry
-        {
-            matchHost: 'uslnmaincr.azurecr.io',
-            username: 'UslnMainCR',
-            password: '{{ secrets.AZURE_ACR_MAIN_TOKEN }}',
-        },
-        // Private Helm charts hosted on GitHub
-        {
-            matchHost: 'raw.githubusercontent.com',
-            username: 'userlane-bot',
-            password: '{{ secrets.GITHUB_CHARTS_TOKEN }}',
         },
     ],
 }
