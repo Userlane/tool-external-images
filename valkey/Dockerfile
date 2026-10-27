@@ -1,1 +1,1 @@
-FROM valkey/valkey:9.1.2
+FROM valkey/valkey:9.1.3
