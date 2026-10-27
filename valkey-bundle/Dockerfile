@@ -1,1 +1,1 @@
-FROM valkey/valkey-bundle:9.1.3
+FROM valkey/valkey-bundle:9.1.4
