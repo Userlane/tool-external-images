@@ -414,7 +414,7 @@
                 'digest',
                 'pinDigest',
             ],
-            automerge: true,
+            automerge: false,
         },
 
         // Scoped to `action` so the runner-image rule above still gets human review.
@@ -431,7 +431,7 @@
                 'digest',
                 'pinDigest',
             ],
-            automerge: true,
+            automerge: false,
         },
     ],
 }
