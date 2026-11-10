@@ -1,5 +1,5 @@
 {
-    // Copy of `.github/renovate.json5` from Userlane/tool-github-actions@b8bc50c,
+    // Copy of `.github/renovate.json5` from Userlane/tool-github-actions@e33dbb5,
     // which this repo cannot extend: it is public and the preset repo is private,
     // so Renovate cannot resolve the preset and aborts on config-validation.
     // Re-sync by diffing against that file. The intended deltas are this comment,
@@ -16,23 +16,20 @@
     // Closed PRs are treated as a rejection; Renovate only re-opens on a newer version.
     recreateWhen: 'never',
 
-    helmfile: {
-        managerFilePatterns: [
-            '//^helmfile\\.d/[^/]+\\.ya?ml$//', // top-level YAML files in helmfile.d/
-        ],
-    },
+    // managerFilePatterns is mergeable: a pattern widens a manager, never narrows one.
+    // .gotmpl stays out on purpose: helm-values parses a values file as YAML (PLT-3682);
+    // the customManagers regex below reaches those files instead.
     'helm-values': {
         managerFilePatterns: [
-            '//^helmfile.d/config/.*.ya?ml$//', // value overrides under helmfile.d/config/
-            '//^helm/values.ya?ml$//',          // standard Helm values
-            '//environments.ya?ml$//',          // environment-specific values (any depth)
+            'helmfile.d/config/**/*.{yaml,yml}',
         ],
     },
-    kubernetes: {
-        managerFilePatterns: [
-            '//.*templates.*.yaml$//', // K8s manifests inside templates directories
-        ],
-    },
+
+    // Strimzi puts the image name in `image.name`, which the helm-values heuristic
+    // ignores, so it looks up this bare registry prefix and takes a 403 from ghcr.
+    ignoreDeps: [
+        'ghcr.io/userlane/tool-external-images',
+    ],
 
     // Renovate ships the pre-commit manager disabled. Without it nothing bumps
     // hook revs, so every `.pre-commit-config.yaml` drifts to wherever its last
@@ -48,9 +45,10 @@
         enabled: true,
     },
 
-    // Both regexes cover something the dockerfile manager will not rewrite. Both
-    // match Dockerfiles at any depth and with any suffix, so a subdir or
-    // `Dockerfile.prod` is not missed.
+    // Each regex covers something a built-in manager will not rewrite, or does not
+    // see at all. The four Dockerfile and go.mod ones match at any depth, so a
+    // nested module, a subdir build, or `Dockerfile.prod` is not missed; the last
+    // is path-anchored on purpose.
     customManagers: [
         // Some repos pin npm in the runtime stage (`npm install -g npm@x.y.z`)
         // to clear a security finding in npm's bundled `tar` (CORE-3558);
@@ -87,6 +85,53 @@
             ],
             depNameTemplate: 'golang',
             datasourceTemplate: 'golang-version',
+        },
+        // A Go module pinned in a build step (`go get <module>@vX.Y.Z`), which an
+        // image built from upstream source uses to force a patched version. No
+        // go.mod exists to track, so the pin only moves when a scanner files the
+        // next ticket. Deliberately not anchored on `go get`: one takes several
+        // modules and anchoring would track only the first. See CLAUDE.md.
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)Dockerfile[^/]*$/',
+            ],
+            matchStrings: [
+                '(?<depName>[a-z0-9-]+(?:\\.[a-z0-9-]+)+/[^\\s@]+)@(?<currentValue>v\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+incompatible)?)',
+            ],
+            datasourceTemplate: 'go',
+        },
+        // gomod extracts the `go` directive but never bumps it: go-mod-directive
+        // versioning reads 1.26.3 as ^1.26.3, which every Go 1.x satisfies, so the
+        // update is dropped. Three-component only; see CLAUDE.md before widening.
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)go\\.mod$/',
+            ],
+            matchStrings: [
+                '\\ngo (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n',
+            ],
+            depNameTemplate: 'golang',
+            datasourceTemplate: 'golang-version',
+        },
+        // Reaches the mirrored tags helm-values cannot (see its note above).
+        // Two guards keep it off service images: the registry capture is anchored
+        // to the mirror hosts, and the three keys must be adjacent, since `\s+` is
+        // whitespace only. Two shapes drop out as a result, both safely: a block
+        // with `# --` comments between the keys, and a templated `tag: {{ $var }}`,
+        // which captures `{{` and is skipped as invalid-value.
+        {
+            customType: 'regex',
+            managerFilePatterns: [
+                '/(^|/)helmfile\\.d/config/(?:[^/]+/)*[^/]+\\.ya?ml\\.gotmpl$/',
+            ],
+            matchStrings: [
+                'registry:\\s+[\'"]?(?<registry>(?:ghcr\\.io|docker\\.io)[^\'"\\s]*)\\s+repository:\\s+[\'"]?(?<repository>[^\'"\\s]+)\\s+tag:\\s+[\'"]?(?<currentValue>[^\'"\\s]+)',
+            ],
+            depNameTemplate: '{{{registry}}}/{{{repository}}}',
+            datasourceTemplate: 'docker',
+            depTypeTemplate: 'gotmpl-image',
         },
     ],
 
@@ -326,6 +371,20 @@
                 'helmv3',
                 'helm-values',
                 'helmfile',
+            ],
+            groupName: null,
+            groupSlug: null,
+            automerge: false,
+            dependencyDashboardApproval: true,
+        },
+
+        // Mirrored image tags in `.gotmpl` values files, from the customManagers
+        // regex above. Same treatment as Helm, for the same reason: these change
+        // live state. Keyed on the depType that manager stamps, not on
+        // `custom.regex`, which would also catch the npm and Go managers above.
+        {
+            matchDepTypes: [
+                'gotmpl-image',
             ],
             groupName: null,
             groupSlug: null,
