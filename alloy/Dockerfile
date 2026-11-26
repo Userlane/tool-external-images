@@ -1,1 +1,1 @@
-FROM docker.io/grafana/alloy:v1.21.3
+FROM docker.io/grafana/alloy:v1.22.0

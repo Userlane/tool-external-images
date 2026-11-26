@@ -1,4 +1,4 @@
-FROM quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+FROM quay.io/prometheuscommunity/postgres-exporter:v0.21.1
 
 #FROM docker.io/bitnami/postgres-exporter:0.11.1-debian-11-r22
 
