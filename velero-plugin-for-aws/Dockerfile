@@ -1,1 +1,1 @@
-FROM velero/velero-plugin-for-aws:v1.14.4
+FROM velero/velero-plugin-for-aws:v1.15.0
